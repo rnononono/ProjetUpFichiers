@@ -1,20 +1,76 @@
 const express = require('express');
+const expressLayouts = require('express-ejs-layouts');
 const multer = require('multer');
 const ejs = require('ejs');
 const path = require('path');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const session = require('express-session');
+const fs = require('fs');
+const flash = require('connect-flash');
+const passport = require('passport');
 
 
-const Image = require('./schema/saveUrl.js');
+const Image = require('./schema/Image');
+const Register = require('./schema/Form');
 
-//Db connect
+//init app
+const app = express();
 
-mongoose.connect('mongodb+srv://nico_save:admin@cluster0-z5xvt.mongodb.net/test?retryWrites=true&w=majority',
+// Passport config
+require('./config/passport')(passport);
+
+//DB config
+const db = require('./config/keys').MongoURI;
+//Connect to Mongo
+mongoose.connect(db,
 {  useNewUrlParser: true,
    useUnifiedTopology: true})
    .then(() => console.log('Connexion à MongolDB réussie !'))
    .catch(() => console.log('Connexion à MongolDB échouée !'));
+
+
+
+
+//Middlewares
+  
+    //EJS
+    app.use(expressLayouts);
+    app.set('view engine', 'ejs');
+    
+    //body parser
+    app.use(bodyParser.urlencoded({ extended: false }));
+    app.use(bodyParser.json());
+    
+    // Express session middleware
+    app.use(session({
+        secret : 'keyboard cat',
+        resave : true,
+        saveUninitialized : true
+     }));
+
+     // Passport middleware
+     app.use(passport.initialize());
+    app.use(passport.session());
+     
+     // Connect flash
+     app.use(flash());
+
+     // Global vars
+     app.use((req, res, next) => {
+         res.locals.success_msg = req.flash('success_msg');
+         res.locals.error_msg = req.flash('error_msg');
+         res.locals.error = req.flash('error');
+         next();
+     } );
+
+
+
+
+
+
+let files = getImagesFromDir(path.join(__dirname, 'public/uploads'));
+//let files = Image.find({}, { projection: {_id:0, content: 1, created_at: 2}});
 
 
 
@@ -34,7 +90,8 @@ const upload = multer({
     fileFilter: function(req, file, cb) {
         checkFileType(file, cb);
     }
-}).single('myImage');
+})
+.single('myImage');
 
 // Check file type function
 function checkFileType(file, cb) {
@@ -48,68 +105,133 @@ function checkFileType(file, cb) {
     if(mimetype && extname){
         return cb(null, true);
         } else {
-            cb('Error: Images only! And for f***er : no GIF allowed');
+            cb('Error: Images only!');
         }
 }
 
 
-//init app
-const app = express();
-app.use(bodyParser.json());
 
-//EJS
-app.set('view engine', 'ejs');
 
 //Public Folder
-app.use(express.static('./public'));
+//app.use(express.static('./public'));
+
+//routes
+app.use('/', require('./routes/index'));
+app.use('/users', require('./routes/users'));
 
 
+app.get('/', (req, res) => {  
 
-app.get('/', (req, res) => {
-    let imgs = [
-        
-            {"_id":{"$oid":"5e397a06ec0cd50ed825b189"},"content":"myImage-1580825094655.jpg","created_at":"04/02/2020 à 15:04:54","__v":{"$numberInt":"0"}},
-            {"_id":{"$oid":"5e397a06ec0cd50ed825b189"},"content":"myImage-1580825094655.jpg","created_at":"04/02/2020 à 15:04:54","__v":{"$numberInt":"0"}},
-            {"_id":{"$oid":"5e397a06ec0cd50ed825b189"},"content":"myImage-1580825094655.jpg","created_at":"04/02/2020 à 15:04:54","__v":{"$numberInt":"0"}}
-        
-    ];
-                res.render('index', {
-                content: 'Url des images',
-                imgs: imgs
-            });
-        });
+    res.render('index', {
+        files:  getImagesFromDir(path.join(__dirname, 'public/uploads'))
+    })
+    console.log(files);
+});
+// dirPath: target image directory
+function getImagesFromDir(dirPath) {
+ 
+    // All iamges holder, defalut value is empty
+    let allImages = [];
+ 
+    // Iterator over the directory
+    let files = fs.readdirSync(dirPath);
+ 
+    // Iterator over the files and push jpg and png images to allImages array.
+    for (file of files) {
+        let fileLocation = path.join(dirPath, file);
+        var stat = fs.statSync(fileLocation);
+        if (stat && stat.isDirectory()) {
+            getImagesFromDir(fileLocation); // process sub directories
+        } else if (stat && stat.isFile() && ['.jpg', '.png'].indexOf(path.extname(fileLocation)) != -1) {
+            allImages.push(file); // push all .jpf and .png files to all images 
+        }
+    }
+ 
+    // return all images in array formate
+    return allImages;
+}
+    
 
-app.post('/upload', (req, res) => {
+app.post('/upload', (req, res) => {    
     upload(req, res, (err) => {
         if(err){
             res.render('index',{
-                 msg: err
+                 msg: err,
+                 //files: getImagesFromDir(path.join(__dirname, 'public/uploads'))
+                files :Image.find({"content" : 1})
                 });
         }else {
             if(req.file == undefined) {
                 res.render('index', {
-                    msg: 'Error: No file selected!'
+                    msg: 'Error: No file selected!',
+                    //files:  getImagesFromDir(path.join(__dirname, 'public/uploads'))
+                    files: Image.find({"content" : 1})
                 });
             } else {
-                {    
+                   
                     let image = new Image({
                         content: 'uploads/' + req.file.filename,
                         created_at: new Date().toLocaleString()
-                   });
-                    image.save()
+                    });
+                    image.save(function(err){
+                        if(err){
+                            console.log(err);
+                            return;
+                        } 
+                        res.render('index', {
+                            msg: 'Post Uploaded !',
+                            files:Image.find({"content" : 1})
+                        });        
                     
-                    res.render('index', {
-                        msg: 'File uploaded !',
-                        file: `${image.content}`
-                        
-                    },
-                   );
-                 }
+                });          
+                 
             }
             
         }
     });
 });
+
+
+// Paramètres que l'application va récupérer
+app.post('/sign_up', function(req,res)
+{ 
+
+    //Verif des champs
+    if(req.body.name == undefined || req.body.email == undefined || req.body.password == undefined) {
+        res.render('index', {
+            msg: 'Veuillez remplir tous les champs !',
+            //files: getImagesFromDir(path.join(__dirname, 'public/uploads'))
+            files: Image.find({"content" : 1})
+        });
+    } else {
+
+        let register = new Register({
+    
+           name: req.body.name,
+            email: req.body.email,
+            password: req.body.password
+        });
+        register.save(function(err){
+            if(err){
+                console.log(err);
+                return;
+            } else {
+                res.render('index', {
+                    msg: 'Inscrit !',
+                    //files: getImagesFromDir(path.join(__dirname, 'public/uploads'))
+                    files:Image.find({"content" : 1})
+                });
+                }
+            });
+    }
+    });
+         
+
+    
+
+  
+  
+
 
 const port = 3000;
 

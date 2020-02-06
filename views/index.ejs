@@ -17,21 +17,25 @@
           
           <br>
           
+         
+          
           <h1>Gallerie d'images </h1>
           <div class="gallery">
+              <% if(files){ files.map(file => { %>
+                
+                  <ul>
+                    <li><img src="<%= file %>" alt="<%= file %>" ></li>
+  
+                  </ul>
+                  
+                <% })}  %>
 
-          <!-- pour chague item dans images afficher :-->
+               
+              
          
            
-             <%= content %>
-             <ul>
-               <%= for(img in imgs) { %>
-                <li> <%= (img.content) %></li>
-               <%= } %>
-             </ul>
-
-
-
+           
+            
            
 
             
@@ -40,6 +44,7 @@
          
          
           </div>
+         
           
 
         </div> <!-- Fin du div.main  -->

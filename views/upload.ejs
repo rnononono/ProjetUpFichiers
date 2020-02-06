@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+ 
+     <!-- Compiled and minified CSS -->
+     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <title>Upload d'images</title>
+</head>
+
+<a href="/users/logout" class="btn btn-secondary">Logout</a>
+
+
+<p class="lead mb-3">Welcome </p>
+
+<p><%= typeof msg != 'undefined' ? msg : '' %> </p>
+
+
+        <form action="/dashboard/upload" method="POST" enctype="multipart/form-data">
+            <div class="file-field input-field">
+              <div class="btn grey">
+                <span>File</span>
+                <input name="myImage" type="file">
+              </div>
+              <div class="file-path-wrapper">
+                <input class="file-path validate" type="text">
+              </div>
+            </div>
+            <button type="submit" class="btn">Submit</button>
+           
+          </form>
+          
+          <br>
+          
+         
+          
+          <h1>Gallerie d'images </h1>
+          <div class="gallery">
+              <% if(files){ files.map(file => { %>
+                
+                  <ul>
+                    <li><img src="<%= file %>" alt="<%= file %>" ></li>
+  
+                  </ul>
+                  
+                <% })}  %>
+  
+         
+          </div>
+         
+          
